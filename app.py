@@ -60,38 +60,26 @@ def calc_kama(close, length, fast=2, slow=30):
     return pd.Series(kama, index=close.index)
 
 # ==========================================
-# 2. إعدادات الصفحة الأساسية وقائمة الشركات
-# ==========================================
-st.set_page_config(page_title="منصة التحليل الاحترافية", layout="wide", page_icon="📈")
-st.title("لوحة تحليل الأسهم المتقدمة 📊")
-
-tickers_dict = {
-    "أرامكو (طاقة)": "2222.SR", "سابك (بتروكيماويات)": "2010.SR", "ينساب (بتروكيماويات)": "2230.SR",
-    "سبكيم (بتروكيماويات)": "2310.SR", "بترورابغ (طاقة)": "2380.SR", "المتقدمة (بتروكيماويات)": "2330.SR",
-    "كيان (بتروكيماويات)": "2350.SR", "الدريس (طاقة)": "4200.SR", "البحري (طاقة)": "4030.SR",
-    "جرير (تجزئة)": "4190.SR", "إكسترا (تجزئة)": "4003.SR", "أسواق العثيم (تجزئة)": "4001.SR",
-    "سينومي ريتيل (تجزئة)": "4240.SR", "ساسكو (تجزئة)": "4050.SR"
-}
-
-# ==========================================
-# 3. دالة حساب المؤشرات (Trinity Pro) 
+# 2. دالة حساب المؤشرات (Trinity Pro) 
 # ==========================================
 def apply_trinity_pro(df):
-    if len(df) < 120: return None
+    if len(df) < 30: # تقليل الحد الأدنى للشارتات القصيرة (مثل شهر)
+        return df
         
-    df['KAMA'] = calc_kama(df['Close'], length=100)
-    df['HMA'] = calc_hma(df['Close'], length=21)
+    # الحسابات الأساسية للمؤشرات
+    df['KAMA'] = calc_kama(df['Close'], length=min(100, len(df)-1))
+    df['HMA'] = calc_hma(df['Close'], length=min(21, len(df)-1))
     
-    df['Price_HMA'] = calc_hma(df['Close'], length=9)
+    df['Price_HMA'] = calc_hma(df['Close'], length=min(9, len(df)-1))
     df['RSI_Fast'] = calc_rsi(df['Price_HMA'], length=14)
     df['RSI_Slow'] = calc_rsi(df['Price_HMA'], length=25)
 
-    df['Vol_HMA'] = calc_hma(df['Volume'], length=9)
+    df['Vol_HMA'] = calc_hma(df['Volume'], length=min(9, len(df)-1))
     df['Is_High_Vol'] = df['Volume'] > df['Vol_HMA']
 
-    df['CMF'] = calc_cmf(df['High'], df['Low'], df['Close'], df['Volume'], length=20)
-    df['CMF_Fast'] = calc_hma(df['CMF'].fillna(0), length=9)
-    df['CMF_Slow'] = calc_hma(df['CMF'].fillna(0), length=21)
+    df['CMF'] = calc_cmf(df['High'], df['Low'], df['Close'], df['Volume'], length=min(20, len(df)-1))
+    df['CMF_Fast'] = calc_hma(df['CMF'].fillna(0), length=min(9, len(df)-1))
+    df['CMF_Slow'] = calc_hma(df['CMF'].fillna(0), length=min(21, len(df)-1))
     df['Is_CMF_Bullish'] = df['CMF_Fast'] > df['CMF_Slow']
 
     high_low_diff = (df['High'] - df['Low']).replace(0, 0.0001) 
@@ -99,8 +87,9 @@ def apply_trinity_pro(df):
     sell_vol = df['Volume'] * (df['High'] - df['Close']) / high_low_diff
     df['Delta_Filter'] = (buy_vol - sell_vol) > 0
 
-    df['RSI_Filter'] = calc_rsi(df['Close'], length=14) < 70
-    df['Is_MTF_Bullish'] = df['Close'] > calc_hma(df['Close'], length=50)
+    df['RSI_Val'] = calc_rsi(df['Close'], length=14)
+    df['RSI_Filter'] = df['RSI_Val'] < 70
+    df['Is_MTF_Bullish'] = df['Close'] > calc_hma(df['Close'], length=min(50, len(df)-1))
 
     # شروط الدخول
     df['Uptrend'] = df['Close'] > df['KAMA']
@@ -112,16 +101,130 @@ def apply_trinity_pro(df):
     return df
 
 # ==========================================
-# 4. بناء التبويبات (الواجهة)
+# 3. إعدادات الصفحة وقائمة الشركات الموسعة
 # ==========================================
-tab1, tab2, tab3 = st.tabs(["🚀 ماسح HMA Trinity", "⚡ التاب الثاني (قريباً)", "🔥 التاب الثالث (قريباً)"])
+st.set_page_config(page_title="منصة التحليل الاحترافية", layout="wide", page_icon="📈")
+st.title("لوحة تحليل الأسهم المتقدمة 📊")
 
+tickers_dict = {
+    # طاقة ومواد أساسية
+    "أرامكو (طاقة)": "2222.SR", "سابك (مواد أساسية)": "2010.SR", "معادن (مواد أساسية)": "1211.SR",
+    "ينساب (مواد أساسية)": "2230.SR", "سبكيم (مواد أساسية)": "2310.SR", "بترورابغ (طاقة)": "2380.SR", 
+    "المتقدمة (مواد أساسية)": "2330.SR", "كيان (مواد أساسية)": "2350.SR", "الدريس (طاقة)": "4200.SR", "البحري (طاقة)": "4030.SR",
+    # بنوك وخدمات مالية
+    "الراجحي (بنوك)": "1120.SR", "الأهلي (بنوك)": "1180.SR", "الإنماء (بنوك)": "1150.SR", 
+    "البلاد (بنوك)": "1140.SR", "مجموعة تداول (خدمات مالية)": "1111.SR",
+    # اتصالات وتقنية
+    "اس تي سي STC (اتصالات)": "7010.SR", "موبايلي (اتصالات)": "7020.SR", "سلوشنز (تقنية)": "7200.SR",
+    # تجزئة وسلع استهلاكية
+    "جرير (تجزئة)": "4190.SR", "إكسترا (تجزئة)": "4003.SR", "أسواق العثيم (تجزئة)": "4001.SR",
+    "سينومي ريتيل (تجزئة)": "4240.SR", "ساسكو (تجزئة)": "4050.SR", "المراعي (غذائي)": "2280.SR",
+    # رعاية صحية وعقارات
+    "سليمان الحبيب (رعاية صحية)": "4013.SR", "دار الأركان (عقارات)": "4300.SR", "جبل عمر (عقارات)": "4250.SR"
+}
+
+# ==========================================
+# 4. بناء التبويبات (الواجهة الرئيسية)
+# ==========================================
+tab1, tab2, tab3 = st.tabs(["📉 مخطط الأسهم الفردي", "🚀 ماسح HMA Trinity", "⚡ التاب القادم (قريباً)"])
+
+# ------------------------------------------
+# التاب الأول: الشارت والتحليل الفردي
+# ------------------------------------------
 with tab1:
-    st.header("ماسح إشارات HMA Trinity Pro")
-    st.markdown("يبحث عن الشركات التي حققت إشارة **Strong Buy** بناءً على تقاطع الزخم، السيولة الإيجابية، وحجم التداول الشرائي.")
+    st.header("التحليل الفني والمخطط البياني للسهم")
     
-    if st.button("بدء المسح 🔍"):
-        with st.spinner("جاري سحب البيانات وتحليل الأسهم..."):
+    # مدخلات المستخدم في سطر واحد لتوفير المساحة
+    col1, col2 = st.columns([2, 2])
+    
+    with col1:
+        user_ticker = st.text_input("اكتب رمز السهم (مثال: 1120 أو 2222.SR):", value="1120")
+        # معالجة النص ليتوافق مع ياهو فاينانشال
+        if user_ticker and not user_ticker.endswith(".SR") and user_ticker.isdigit():
+            ticker_symbol = f"{user_ticker}.SR"
+        else:
+            ticker_symbol = user_ticker.upper()
+            
+    with col2:
+        timeframe_label = st.radio("اختر المدة الزمنية للشارت:", ["شهر", "سنة", "5 سنوات"], horizontal=True)
+        # تحويل الاختيار لمدد مفهومة لـ yfinance
+        if timeframe_label == "شهر":
+            selected_period, selected_interval = "1mo", "1d"
+        elif timeframe_label == "سنة":
+            selected_period, selected_interval = "1y", "1d"
+        else:
+            selected_period, selected_interval = "5y", "1wk"
+
+    if ticker_symbol:
+        with st.spinner(f"جاري جلب بيانات السهم {ticker_symbol}..."):
+            try:
+                # سحب بيانات سنة كاملة كحد أدنى لحساب المؤشرات بدقة حتى لو كان المعروض شهراً واحداً
+                fetch_period = "1y" if selected_period == "1mo" else selected_period
+                df_stock = yf.download(ticker_symbol, period=fetch_period, interval=selected_interval, progress=False)
+                
+                if not df_stock.empty:
+                    if isinstance(df_stock.columns, pd.MultiIndex):
+                        df_stock.columns = df_stock.columns.get_level_values(0)
+                        
+                    # تشغيل الاستراتيجية الفنية
+                    df_stock = apply_trinity_pro(df_stock)
+                    
+                    # تصفية البيانات للعرض فقط إذا كان الاختيار "شهر"
+                    if selected_period == "1mo":
+                        df_display = df_stock.tail(30)
+                    else:
+                        df_display = df_stock
+                    
+                    # عرض معلومات سريعة عن السهم
+                    last_price = round(df_display.iloc[-1]['Close'], 2)
+                    st.metric(label=f"آخر سعر إغلاق للسهم ({ticker_symbol})", value=f"{last_price} ر.س")
+                    
+                    # رسم المخطط البياني التفاعلي للسعر
+                    st.subheader("مخطط حركة السعر 📊")
+                    st.line_chart(df_display['Close'], use_container_width=True)
+                    
+                    # تحليل الوضع الحالي للسهم بناء على الاستراتيجية
+                    st.subheader("التقرير الفني اللحظي (Trinity Pro) 📋")
+                    last_row = df_stock.iloc[-1]
+                    
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        st.write(f"**مؤشر RSI:** {round(last_row.get('RSI_Val', 50), 2)}")
+                        if last_row.get('RSI_Val', 50) > 70:
+                            st.warning("تشبع شرائي ⚠️")
+                        elif last_row.get('RSI_Val', 50) < 30:
+                            st.success("تشبع بيعي (فرصة ارتداد) 🟢")
+                        else:
+                            st.write("منطقة محايدة ⚖️")
+                            
+                    with c2:
+                        st.write("**حالة السيولة (CMF):**")
+                        if last_row.get('Is_CMF_Bullish', False):
+                            st.success("السيولة إيجابية وتدخل السهم 🟢")
+                        else:
+                            st.error("السيولة ضعيفة أو تخرج من السهم 🔴")
+                            
+                    with c3:
+                        st.write("**إشارة الدخول:**")
+                        if last_row.get('Strong_Buy_Signal', False):
+                            st.button("🔥 إشارة شراء قوية (Strong Buy)!", disabled=True)
+                        else:
+                            st.info("لا توجد إشارة دخول مؤكدة حالياً.")
+                            
+                else:
+                    st.error("لم نتمكن من العثور على بيانات لهذا الرمز. تأكد من كتابة الرقم الصحيح للسهم السعودي.")
+            except Exception as e:
+                st.error(f"حدث خطأ أثناء جلب البيانات: {e}")
+
+# ------------------------------------------
+# التاب الثاني: ماسح السوق التلقائي
+# ------------------------------------------
+with tab2:
+    st.header("ماسح إشارات HMA Trinity Pro التلقائي")
+    st.markdown("يقوم هذا الماسح بفحص **كل الشركات القيادية الموسعة** دفعة واحدة للبحث عن الأسهم التي حققت إشارة دخول اليوم.")
+    
+    if st.button("بدء مسح السوق الموسع 🔍"):
+        with st.spinner(f"جاري سحب بيانات {len(tickers_dict)} شركة وتحليلها..."):
             results = []
             for name, ticker in tickers_dict.items():
                 try:
@@ -133,17 +236,20 @@ with tab1:
                     if df_analyzed is not None and df_analyzed.iloc[-1]['Strong_Buy_Signal']:
                         last_row = df_analyzed.iloc[-1]
                         results.append({
-                            "الشركة": name, "الرمز": ticker, "الإغلاق": round(last_row['Close'], 2),
-                            "السيولة": "إيجابية 🟢", "فوليوم دلتا": "إيجابي 🟢"
+                            "الشركة": name, "الرمز": ticker, "الإغلاق الحالي": round(last_row['Close'], 2),
+                            "مؤشر RSI": round(last_row['RSI_Val'], 2), "السيولة": "إيجابية 🟢", "فوليوم دلتا": "إيجابي 🟢"
                         })
                 except Exception:
                     pass
             
             if results:
-                st.success("تم العثور على فرص توافق شروطك!")
+                st.success(f"تم العثور على {len(results)} فرص واعدة توافق شروطك الفنية تماماً!")
                 st.dataframe(pd.DataFrame(results), use_container_width=True)
             else:
-                st.info("لم تحقق أي شركة شروط الدخول اليوم. السوق قد يحتاج إلى مزيد من الزخم.")
+                st.info("لم تحقق أي شركة شروط الدخول الصارمة (Strong Buy) اليوم. انتظر تماسك السوق.")
 
-with tab2:
-    st.info("التاب الثاني جاهز لاستقبال المؤشر القادم.")
+# ------------------------------------------
+# التاب الثالث: للاستخدام المستقبلي
+# ------------------------------------------
+with tab3:
+    st.info("هذا التاب جاهز لاستقبال فكرتك القادمة أو المؤشر الثاني بمجرد أن تعتمد الكود الحالي.")
