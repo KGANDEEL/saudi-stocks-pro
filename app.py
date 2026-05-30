@@ -121,13 +121,14 @@ tickers_dict = {
 # ==========================================
 # 4. بناء التبويبات (الواجهة الرئيسية)
 # ==========================================
-tab1, tab2, tab3 = st.tabs(["📉 مخطط الشموع اليابانية", "🚀 ماسح HMA Trinity", "⚡ التاب القادم (قريباً)"])
+tab1, tab2, tab3 = st.tabs(["📉 مخطط الشموع ومؤشر HMA", "🚀 ماسح HMA Trinity", "⚡ التاب القادم (قريباً)"])
 
 # ------------------------------------------
-# التاب الأول: الشارت الفردي بالشموع اليابانية
+# التاب الأول: الشارت الفردي بالشموع ومؤشرات HMA المدمجة
 # ------------------------------------------
 with tab1:
-    st.header("التحليل الفني ومخطط الشموع اليابانية")
+    st.header("التحليل الفني ومخطط الشموع مع متوسطات HMA")
+    st.caption("🔵 الخط الأزرق: HMA السريع (9) | 🟠 الخط البرتقالي: HMA البطيء (21)")
     
     col1, col2 = st.columns([2, 2])
     
@@ -167,26 +168,46 @@ with tab1:
                     last_price = round(df_display.iloc[-1]['Close'], 2)
                     st.metric(label=f"آخر سعر إغلاق للسهم ({ticker_symbol})", value=f"{last_price} ر.س")
                     
-                    # 🔴 هنا رسم الشموع اليابانية بشكل احترافي باستخدام Plotly
-                    st.subheader("مخطط الشموع التفاعلي 📊")
+                    st.subheader("مخطط الشموع ومؤشر HMA التفاعلي 📊")
                     
+                    # 1. رسم الشموع اليابانية الأساسية
                     fig = go.Figure(data=[go.Candlestick(
                         x=df_display.index,
                         open=df_display['Open'],
                         high=df_display['High'],
                         low=df_display['Low'],
                         close=df_display['Close'],
-                        increasing_line_color='#26a69a',  # أخضر مريح للعين
-                        decreasing_line_color='#ef5350'   # أحمر مريح للعين
+                        name="الشموع",
+                        increasing_line_color='#26a69a',
+                        decreasing_line_color='#ef5350'
                     )])
                     
+                    # 2. 🟢 إضافة خط HMA السريع (إعداد 9) باللون الأزرق
+                    fig.add_trace(go.Scatter(
+                        x=df_display.index,
+                        y=df_display['Price_HMA'],
+                        mode='lines',
+                        name='HMA السريع (9)',
+                        line=dict(color='#2196f3', width=2)
+                    ))
+                    
+                    # 3. 🟢 إضافة خط HMA البطيء (إعداد 21) باللون البرتقالي
+                    fig.add_trace(go.Scatter(
+                        x=df_display.index,
+                        y=df_display['HMA'],
+                        mode='lines',
+                        name='HMA البطيء (21)',
+                        line=dict(color='#ff9800', width=2.5)
+                    ))
+                    
+                    # إعدادات الواجهة الرسومية
                     fig.update_layout(
-                        xaxis_rangeslider_visible=False,  # إخفاء شريط التمرير السفلي لمنظر أنظف
+                        xaxis_rangeslider_visible=False,
                         margin=dict(l=10, r=10, t=10, b=10),
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         xaxis=dict(gridcolor='rgba(200,200,200,0.15)'),
-                        yaxis=dict(gridcolor='rgba(200,200,200,0.15)', title="السعر (ر.س)")
+                        yaxis=dict(gridcolor='rgba(200,200,200,0.15)', title="السعر / المؤشر")
                     )
                     
                     st.plotly_chart(fig, use_container_width=True)
@@ -220,7 +241,7 @@ with tab1:
                             st.info("لا توجد إشارة دخول مؤكدة حالياً.")
                             
                 else:
-                    st.error("لم نتمكن من العثور على بيانات لهذا الرمز. تأكد من كتابة الرقم الصحيح للمقاصة الفنية.")
+                    st.error("لم نتمكن من العثور على بيانات لهذا الرمز. تأكد من كتابة الرقم الصحيح.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء جلب البيانات: {e}")
 
@@ -260,4 +281,4 @@ with tab2:
 # التاب الثالث: للاستخدام المستقبلي
 # ------------------------------------------
 with tab3:
-    st.info("هذا التاب جاهز لاستقبال المؤشر الثاني بمجرد اعتماد لوحة الشموع بنجاح.")
+    st.info("هذا التاب جاهز لاستقبال المؤشر القادم.")
